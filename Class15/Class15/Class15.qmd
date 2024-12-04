@@ -1,0 +1,267 @@
+---
+title: "Class 15: Mini Project: Investigating Pertussis Resurgence"
+author: "Saira Cazarez PID: A69034931"
+format: pdf
+---
+
+
+Pertussis, a.k.a Whooping Cough, is a highly contagous lung infection caused by the *B. Pertussis*
+
+
+The CDC tracks Pertussis case numbers and can be accessed[here](https://www.cdc.gov/pertussis/php/surveillance/pertussis-cases-by-year.html?CDC_AAref_Val=https://www.cdc.gov/pertussis/surv-reporting/cases-by-year.html)
+
+We need to "script" this data so we do stuff with it in R. Let's try the **datapasta** package to do this. 
+
+
+```{r}
+cdc <- data.frame(
+                                 year = c(1922L,1923L,1924L,1925L,
+                                          1926L,1927L,1928L,1929L,1930L,1931L,
+                                          1932L,1933L,1934L,1935L,1936L,
+                                          1937L,1938L,1939L,1940L,1941L,1942L,
+                                          1943L,1944L,1945L,1946L,1947L,
+                                          1948L,1949L,1950L,1951L,1952L,
+                                          1953L,1954L,1955L,1956L,1957L,1958L,
+                                          1959L,1960L,1961L,1962L,1963L,
+                                          1964L,1965L,1966L,1967L,1968L,1969L,
+                                          1970L,1971L,1972L,1973L,1974L,
+                                          1975L,1976L,1977L,1978L,1979L,1980L,
+                                          1981L,1982L,1983L,1984L,1985L,
+                                          1986L,1987L,1988L,1989L,1990L,
+                                          1991L,1992L,1993L,1994L,1995L,1996L,
+                                          1997L,1998L,1999L,2000L,2001L,
+                                          2002L,2003L,2004L,2005L,2006L,2007L,
+                                          2008L,2009L,2010L,2011L,2012L,
+                                          2013L,2014L,2015L,2016L,2017L,2018L,
+                                          2019L,2020L,2021L,2022L, 2024L),
+         cases = c(107473,164191,165418,152003,
+                                          202210,181411,161799,197371,
+                                          166914,172559,215343,179135,265269,
+                                          180518,147237,214652,227319,103188,
+                                          183866,222202,191383,191890,109873,
+                                          133792,109860,156517,74715,69479,
+                                          120718,68687,45030,37129,60886,
+                                          62786,31732,28295,32148,40005,
+                                          14809,11468,17749,17135,13005,6799,
+                                          7717,9718,4810,3285,4249,3036,
+                                          3287,1759,2402,1738,1010,2177,2063,
+                                          1623,1730,1248,1895,2463,2276,
+                                          3589,4195,2823,3450,4157,4570,
+                                          2719,4083,6586,4617,5137,7796,6564,
+                                          7405,7298,7867,7580,9771,11647,
+                                          25827,25616,15632,10454,13278,
+                                          16858,27550,18719,48277,28639,32971,
+                                          20762,17972,18975,15609,18617,
+                                          6124,2116,3044, 23544)
+       )
+```
+
+
+Let's plot year vs cases to see the trend over time in the US. 
+
+```{r}
+library(ggplot2)
+
+baseplot <- ggplot(cdc)+ 
+  aes(year, cases)+
+  geom_point()+
+  geom_line()
+```
+
+
+Let's add the date of wP vaccine roll out completion (1946) and the switch to the new aP vaccine (1996). 
+```{r}
+baseplot + 
+  theme_bw()+
+  geom_vline(xintercept= 1946, col="blue")+
+  geom_vline(xintercept= 1996, col="red")+
+  geom_vline(xintercept= 2020, col="gray")+
+  geom_vline(xintercept= 2004)
+
+```
+
+##CMI-PB (Computational Mondels of Immunity- Pertussis Boost)
+
+This project collects and makes freely available data about the immune response to Pertussis vaccination. 
+
+You can access the data via API which resturns JSON format (key:vale pairs). 
+
+We can use the **jsonlite** package and it's `read_json()` function. 
+
+```{r}
+library(jsonlite)
+
+subject <- read_json("https://www.cmi-pb.org/api/v5/subject",
+                      simplifyVector = TRUE)
+```
+
+
+Let's have a wee peak and explore this 
+```{r}
+head(subject)
+```
+
+> Q. How many subjects do we have ? 
+
+```{r}
+nrow(subject)
+```
+
+>Q. How many make/female do we have? 
+
+```{r}
+table(subject$biological)
+```
+
+> Q. How many wP and aP do we have? 
+
+```{r}
+table(subject$infancy_vac)
+```
+
+
+>Q. break down of biological sex and race? 
+
+```{r}
+table(subject$race, subject$biological_sex)
+```
+
+>Q. Does this break down reflect the US population? 
+
+No 
+
+```{r}
+table(subject$dataset)
+```
+
+
+
+```{r}
+specimen <- read_json("https://www.cmi-pb.org/api/v5/specimen" ,
+                      simplifyVector = TRUE)
+
+ab_titer <- read_json("https://www.cmi-pb.org/api/v5/plasma_ab_titer" ,
+                      simplifyVector = TRUE)
+```
+
+
+```{r}
+head(ab_titer)
+```
+
+```{r}
+head(specimen)
+```
+
+
+We want merge or "join" these tables so we can have all the infor we need about a given antibody measurement. 
+```{r}
+library(dplyr)
+
+meta <- inner_join(subject, specimen)
+```
+```{r}
+head(meta)
+```
+
+and one last join of `ab_titer` and `meta`
+
+```{r}
+abdata <- inner_join(ab_titer, meta)
+```
+```{r}
+head(abdata)
+```
+
+```{r}
+nrow(abdata)
+```
+
+```{r}
+head(abdata)
+```
+
+```{r}
+table(abdata$isotype)
+```
+
+```{r}
+table(abdata$antigen)
+```
+
+
+Let's begin with IgG 
+```{r}
+igg <- filter(abdata, isotype=="IgG")
+head(igg)
+```
+Make a boxplot of IgG antigen levels - this will be a plot of MFI vs antigen 
+```{r}
+library(ggplot2)
+
+ggplot(igg)+
+aes(MFI_normalised, antigen)+
+  geom_boxplot()
+```
+
+
+```{r}
+ggplot(igg)+
+aes(MFI_normalised, antigen, col=infancy_vac)+
+  geom_boxplot()
+```
+
+Ideally I would like to see how these Ab levels change iver time relative to the booster shot. 
+
+```{r}
+table(abdata$visit)
+```
+```{r}
+ggplot(igg)+
+aes(MFI_normalised, antigen)+
+  geom_boxplot()+
+  facet_wrap(~visit)
+```
+
+
+
+```{r}
+abdata.21 <- abdata %>% filter(dataset == "2021_dataset")
+
+abdata.21 %>% 
+  filter(isotype == "IgG",  antigen == "PT") %>%
+  ggplot() +
+    aes(x=planned_day_relative_to_boost, y=MFI_normalised, col=infancy_vac,
+        group=subject_id) +
+    geom_point() +
+    geom_line() +
+    geom_vline(xintercept=0, linetype="dashed") +
+    geom_vline(xintercept=14, linetype="dashed") +
+  labs(title="2021 dataset IgG PT",
+       subtitle = "Dashed lines indicate day 0 (pre-boost) and 14 (apparent peak levels)")
+```
+
+
+```{r}
+abdata.20 <- abdata %>% filter(dataset == "2020_dataset")
+
+abdata.20 %>% 
+  filter(isotype == "IgG",  antigen == "PT") %>%
+  ggplot() +
+    aes(x=planned_day_relative_to_boost, y=MFI_normalised, col=infancy_vac,
+        group=subject_id) +
+    geom_point() +
+    geom_line() +
+    geom_vline(xintercept=0, linetype="dashed") +
+    geom_vline(xintercept=14, linetype="dashed") +
+  labs(title="2020 dataset IgG PT",
+       subtitle = "Dashed lines indicate day 0 (pre-boost) and 14 (apparent peak levels)")
+```
+
+
+
+
+
+
+
+

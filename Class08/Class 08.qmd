@@ -1,0 +1,240 @@
+---
+title: "Class 08"
+author: "Saira Cazarez PID: A69034931"
+format: pdf
+---
+
+## Breast Cancer FNA data 
+```{r}
+wisc.df <- read.csv("WisconsinCancer.csv", row.names=1)
+
+head(wisc.df)
+```
+
+> Q1. How many rows/patients/subjects. 
+
+```{r}
+nrow(wisc.df)
+```
+> Q2. How many M (cancer) B (healthy) patients 
+
+```{r}
+table(wisc.df$diagnosis)
+```
+
+
+Be sure to remove this diagnosis column from our data to analyze 
+
+```{r}
+wisc.data <- wisc.df[,-1]
+diagnosis <- as.factor(wisc.df$diagnosis)
+```
+> Q3.How many variables/features in the data are suffixed with _mean?
+
+```{r}
+length( grep("_mean", colnames(wisc.data)))
+```
+```{r}
+colMeans(wisc.data)
+
+apply(wisc.data,2,sd)
+```
+
+## Principal Component Analysis 
+
+We want to scale our data before PCA by setting the `scale=True`argument! 
+
+```{r}
+wisc.pr <- prcomp(wisc.data, scale=TRUE)
+```
+
+
+How much variance captured in each PC?
+```{r}
+summary(wisc.pr)
+```
+How much variance captured in each PC? 
+```{r}
+x <- summary(wisc.pr)
+x$importance 
+```
+```{r}
+plot(x$importance[2,], typ="b")
+```
+> Q7. What stands out to you about this plot? Is it easy or difficult to understand? Why?
+
+The plot is very difficult to understand because there are so many factors that are overlapping making the plot difficult to read. 
+
+```{r}
+biplot(wisc.pr)
+```
+
+```{r}
+attributes(wisc.pr)
+```
+
+```{r}
+head(wisc.pr$x)
+```
+My main PC results figure
+
+```{r}
+
+plot(wisc.pr$x , col = diagnosis , 
+     xlab = "PC1", ylab = "PC2")
+
+```
+
+```{r}
+plot(wisc.pr$x[,c(1,3) ], col =diagnosis, 
+     xlab = "PC1", ylab = "PC3")
+```
+
+```{r}
+df <- as.data.frame(wisc.pr$x)
+df$diagnosis <- diagnosis
+
+library(ggplot2)
+
+ggplot(df) + 
+  aes(PC1, PC2, col=diagnosis) + 
+  geom_point()
+```
+
+```{r}
+pr.var <- wisc.pr$sdev^2
+head(pr.var)
+```
+## Clustering 
+Try to cluster the `wisc.data`. 
+```{r}
+km <- kmeans(wisc.data, centers= 2)
+table(km$cluster)
+```
+```{r}
+d <- dist (wisc.data)
+hc <- hclust(d)
+plot(hc)
+```
+
+```{r}
+grps <- cutree(hc, k=3)
+table(grps)
+```
+
+## Cluster in PC space 
+
+In other words use my PCA results as a baisis of clustering. 
+
+```{r}
+d <- dist(wisc.pr$x[,1:3])
+hc <- hclust(d, method="ward.D2")
+plot(hc)
+```
+
+
+Cut this tree to yield 2 groups/clusters 
+```{r}
+grps <- cutree(hc, k=2)
+table(grps)
+```
+
+Compare to my expert M and B `diagnosis`
+```{r}
+table(diagnosis)
+```
+
+```{r}
+table(diagnosis, grps)
+```
+
+
+```{r}
+pve <- (wisc.pr$sdev^2) / sum(wisc.pr$sdev^2)
+
+
+plot(pve, xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", 
+     ylim = c(0, 1), type = "o")
+```
+
+
+```{r}
+barplot(pve, ylab = "Precent of Variance Explained",
+     names.arg=paste0("PC",1:length(pve)), las=2, axes = FALSE)
+axis(2, at=pve, labels=round(pve,2)*100 )
+```
+> Q9. For the first principal component, what is the component of the loading vector (i.e. wisc.pr$rotation[,1]) for the feature concave.points_mean? This tells us how much this original feature contributes to the first PC.
+
+```{r}
+wisc.pr$rotation["concave.points_mean", 1]
+```
+
+```{r}
+# Scale the wisc.data data using the "scale()" function
+data.scaled <- scale(wisc.data)
+```
+
+```{r}
+data.dist <- dist(data.scaled)
+```
+
+
+```{r}
+wisc.hclust <- hclust(data.dist, method = "complete")
+plot(wisc.hclust)
+abline(h = 19, col = "red", lty = 2)
+
+```
+
+```{r}
+wisc.hclust.clusters <- cutree(wisc.hclust, k = 4)
+```
+
+```{r}
+table(wisc.hclust.clusters, diagnosis)
+```
+> Q12. Which method gives your favorite results for the same data.dist dataset? Explain your reasoning.
+
+```{r}
+wisc.hclust <- hclust(data.dist, method = "ward.D2")
+plot(wisc.hclust)
+```
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grps)
+```
+
+
+```{r}
+plot(wisc.pr$x[,1:2], col=diagnosis)
+```
+
+```{r}
+g <- as.factor(grps)
+levels(g)
+```
+
+```{r}
+g <- relevel(g,2)
+levels(g)
+```
+```{r}
+plot(wisc.pr$x[,1:2], col=g)
+```
+
+```{r}
+url <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url)
+npc <- predict(wisc.pr, newdata=new)
+npc
+```
+```{r}
+plot(wisc.pr$x[,1:2], col=g)
+points(npc[,1], npc[,2], col="blue", pch=16, cex=3)
+text(npc[,1], npc[,2], c(1,2), col="white")
+```
+
+> Q16. Which of these new patients should we prioritize for follow up based on your results?
+
+Patient 2 should be prioritized because they have more malignant type cells. 
