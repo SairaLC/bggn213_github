@@ -1,7 +1,7 @@
 ---
 title: "RNA-Seq analysis mini-project"
 author: "Saira Cazarez PID:A69034931"
-format: pdf
+format: gfm
 ---
 
 ##Import Data 
