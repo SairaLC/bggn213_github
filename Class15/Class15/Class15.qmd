@@ -1,7 +1,7 @@
 ---
 title: "Class 15: Mini Project: Investigating Pertussis Resurgence"
 author: "Saira Cazarez PID: A69034931"
-format: pdf
+format: gfm
 ---
 
 
